@@ -11,6 +11,14 @@ You can unfold everything with `fold-this-unfold-all`.
 
 You can fold all instances of the text in the region with `fold-this-all`.
 
+## Installation
+
+It is available on [marmalade](http://marmalade-repo.org/):
+
+    M-x package-install fold-this
+
+Or just dump it in your load path somewhere and `(require 'fold-this)`
+
 ## Setup
 
 I won't presume to know which keys you want these functions bound to,
