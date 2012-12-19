@@ -13,7 +13,7 @@ You can fold all instances of the text in the region with `fold-this-all`.
 
 ## Installation
 
-It is available on [marmalade](http://marmalade-repo.org/):
+It is available on [marmalade](http://marmalade-repo.org/) and [Melpa](http://melpa.milkbox.net/):
 
     M-x package-install fold-this
 
