@@ -73,6 +73,18 @@
   (deactivate-mark))
 
 ;;;###autoload
+(defun fold-active-region (beg end)
+  (interactive "r")
+  (when (region-active-p)
+    (fold-this beg end)))
+
+;;;###autoload
+(defun fold-active-region-all (beg end)
+  (interactive "r")
+  (when (region-active-p)
+    (fold-this-all beg end)))
+
+;;;###autoload
 (defun fold-this-unfold-all ()
   (interactive)
   (mapc 'fold-this--delete-my-overlay
