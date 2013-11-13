@@ -31,9 +31,17 @@ which incidentally is what I use:
 (global-set-key (kbd "C-c M-f") 'fold-this-unfold-all)
 ```
 
+If you want to make sure that a mistype doesn't fold anything when
+your region is deactivated, you can use `fold-active-region` and
+`fold-active-region-all` instead.
+
+## Contributors
+
+- [Dewdrops](https://github.com/Dewdrops) contributed `fold-active-region` and `fold-active-region-all`
+
 ## License
 
-Copyright (C) 2012 Magnar Sveen
+Copyright (C) 2012-2013 Magnar Sveen
 
 Author: Magnar Sveen <magnars@gmail.com>
 Keywords: convenience
