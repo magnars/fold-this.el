@@ -35,9 +35,13 @@ If you want to make sure that a mistype doesn't fold anything when
 your region is deactivated, you can use `fold-active-region` and
 `fold-active-region-all` instead.
 
+You can customize the visuals of the folded region by changing
+`fold-this-overlay` face.
+
 ## Contributors
 
 - [Dewdrops](https://github.com/Dewdrops) contributed `fold-active-region` and `fold-active-region-all`
+- [Fuco1](https://github.com/Fuco1) added folded region face customization.
 
 ## License
 
