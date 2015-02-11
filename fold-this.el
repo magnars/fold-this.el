@@ -48,6 +48,11 @@
 (define-key fold-this-keymap (kbd "<return>") 'fold-this-unfold-at-point)
 (define-key fold-this-keymap (kbd "C-g") 'fold-this-unfold-at-point)
 
+(defface fold-this-overlay
+  '((t (:inherit default)))
+  "Face used to highlight the fold overlay."
+  :group 'fold-this)
+
 ;;;###autoload
 (defun fold-this (beg end)
   (interactive "r")
@@ -55,9 +60,10 @@
     (overlay-put o 'type 'fold-this)
     (overlay-put o 'invisible t)
     (overlay-put o 'keymap fold-this-keymap)
+    (overlay-put o 'face 'fold-this-overlay)
     (overlay-put o 'modification-hooks '(fold-this--unfold-overlay))
-    (overlay-put o 'display ".")
-    (overlay-put o 'before-string ".")
+    (overlay-put o 'display (propertize "." 'face 'fold-this-overlay))
+    (overlay-put o 'before-string (propertize "." 'face 'fold-this-overlay))
     (overlay-put o 'evaporate t))
   (deactivate-mark))
 
