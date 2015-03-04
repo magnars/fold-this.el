@@ -109,5 +109,48 @@
 (defun fold-this--unfold-overlay (overlay after? beg end &optional length)
   (delete-overlay overlay))
 
+;;; Fold-this overlay persistence
+;;
+;; TODO: strong overlay persistence (survive between Emacs sessions). Should
+;; probably be done the way saveplace is done.
+
+(defvar fold-this--overlay-alist nil
+  "An alist of filenames mapped to fold overlay positions")
+
+(defun fold-this--find-file-hook ()
+  "A hook restoring fold overlays"
+  (when (and buffer-file-name
+             (not (derived-mode-p 'dired-mode)))
+    (let* ((file-name buffer-file-name)
+           (cell (assoc file-name fold-this--overlay-alist)))
+      (when cell
+        (mapc (lambda (pair) (fold-this (car pair) (cdr pair)))
+              (cdr cell))
+        (setq fold-this--overlay-alist
+              (delq cell fold-this--overlay-alist))))))
+(add-hook 'find-file-hook 'fold-this--find-file-hook)
+
+(defun fold-this--kill-buffer-hook ()
+  "A hook saving overlays"
+  (when (and buffer-file-name
+             (not (derived-mode-p 'dired-mode)))
+    (mapc 'fold-this--save-overlay-to-alist
+          (overlays-in (point-min) (point-max)))))
+(add-hook 'kill-buffer-hook 'fold-this--kill-buffer-hook)
+
+(defun fold-this--save-overlay-to-alist (overlay)
+  "Add an overlay position pair to the alist"
+  (when (eq (overlay-get overlay 'type) 'fold-this)
+    (let* ((pos (cons (overlay-start overlay) (overlay-end overlay)))
+           (file-name buffer-file-name)
+           (cell (assoc file-name fold-this--overlay-alist))
+           overlay-list)
+      (when cell (setq fold-this--overlay-alist
+                       (delq cell fold-this--overlay-alist))
+            (setq overlay-list (cdr cell)))
+      (setq fold-this--overlay-alist
+            (cons (cons file-name (cons pos overlay-list))
+                  fold-this--overlay-alist)))))
+
 (provide 'fold-this)
 ;;; fold-this.el ends here
