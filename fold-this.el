@@ -53,6 +53,11 @@
   "Face used to highlight the fold overlay."
   :group 'fold-this)
 
+(defcustom fold-this-persistent-folds t
+  "Non-nil means that folds survive buffer kills."
+  :group 'fold-this
+  :type 'boolean)
+
 ;;;###autoload
 (defun fold-this (beg end)
   (interactive "r")
@@ -119,7 +124,8 @@
 
 (defun fold-this--find-file-hook ()
   "A hook restoring fold overlays"
-  (when (and buffer-file-name
+  (when (and fold-this-persistent-folds
+             buffer-file-name
              (not (derived-mode-p 'dired-mode)))
     (let* ((file-name buffer-file-name)
            (cell (assoc file-name fold-this--overlay-alist)))
@@ -132,7 +138,8 @@
 
 (defun fold-this--kill-buffer-hook ()
   "A hook saving overlays"
-  (when (and buffer-file-name
+  (when (and fold-this-persistent-folds
+             buffer-file-name
              (not (derived-mode-p 'dired-mode)))
     (mapc 'fold-this--save-overlay-to-alist
           (overlays-in (point-min) (point-max)))))
