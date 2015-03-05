@@ -125,11 +125,17 @@
 (defvar fold-this--overlay-alist nil
   "An alist of filenames mapped to fold overlay positions")
 
+(defvar fold-this--overlay-alist-loaded nil
+  "Non-nil if the alist has already been loaded")
+
 (defun fold-this--find-file-hook ()
   "A hook restoring fold overlays"
   (when (and fold-this-persistent-folds
              buffer-file-name
              (not (derived-mode-p 'dired-mode)))
+    (when (not fold-this--overlay-alist-loaded)
+      (fold-this--load-alist-from-file)
+      (setq fold-this--overlay-alist-loaded t))
     (let* ((file-name buffer-file-name)
            (cell (assoc file-name fold-this--overlay-alist)))
       (when cell
@@ -144,6 +150,9 @@
   (when (and fold-this-persistent-folds
              buffer-file-name
              (not (derived-mode-p 'dired-mode)))
+    (when (not fold-this--overlay-alist-loaded)
+      (fold-this--load-alist-from-file)
+      (setq fold-this--overlay-alist-loaded t))
     (mapc 'fold-this--save-overlay-to-alist
           (overlays-in (point-min) (point-max)))))
 (add-hook 'kill-buffer-hook 'fold-this--kill-buffer-hook)
@@ -151,7 +160,8 @@
 (defun fold-this--kill-emacs-hook ()
   "A hook saving overlays in all buffers and dumping them into a
   file"
-  (when fold-this-persistent-folds
+  (when (and fold-this-persistent-folds
+             fold-this--overlay-alist-loaded)
     (fold-this--walk-buffers-save-overlays)
     (fold-this--save-alist-to-file)))
 (add-hook 'kill-emacs-hook 'fold-this--kill-emacs-hook)
