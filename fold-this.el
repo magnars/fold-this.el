@@ -145,6 +145,17 @@
           (overlays-in (point-min) (point-max)))))
 (add-hook 'kill-buffer-hook 'fold-this--kill-buffer-hook)
 
+(defun fold-this--walk-buffers-save-overlays ()
+  "Walk the buffer list, save overlays to the alist"
+  (let ((buf-list (buffer-list)))
+    (while buf-list
+      (with-current-buffer (car buf-list)
+        (when (and buffer-file-name
+                   (not (derived-mode-p 'dired-mode)))
+          (mapc 'fold-this--save-overlay-to-alist
+                (overlays-in (point-min) (point-max))))
+        (setq buf-list (cdr buf-list))))))
+
 (defun fold-this--save-overlay-to-alist (overlay)
   "Add an overlay position pair to the alist"
   (when (eq (overlay-get overlay 'type) 'fold-this)
