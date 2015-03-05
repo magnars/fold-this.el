@@ -58,6 +58,11 @@
   :group 'fold-this
   :type 'boolean)
 
+(defcustom fold-this-persistent-folds-file (locate-user-emacs-file "fold-this")
+  "A file to save persistent fold info to."
+  :group 'fold-this
+  :type 'file)
+
 ;;;###autoload
 (defun fold-this (beg end)
   (interactive "r")
@@ -116,8 +121,6 @@
 
 ;;; Fold-this overlay persistence
 ;;
-;; TODO: strong overlay persistence (survive between Emacs sessions). Should
-;; probably be done the way saveplace is done.
 
 (defvar fold-this--overlay-alist nil
   "An alist of filenames mapped to fold overlay positions")
@@ -144,6 +147,46 @@
     (mapc 'fold-this--save-overlay-to-alist
           (overlays-in (point-min) (point-max)))))
 (add-hook 'kill-buffer-hook 'fold-this--kill-buffer-hook)
+
+(defun fold-this--kill-emacs-hook ()
+  "A hook saving overlays in all buffers and dumping them into a
+  file"
+  (when fold-this-persistent-folds
+    (fold-this--walk-buffers-save-overlays)
+    (fold-this--save-alist-to-file)))
+(add-hook 'kill-emacs-hook 'fold-this--kill-emacs-hook)
+
+(defun fold-this--save-alist-to-file ()
+  (let ((file (expand-file-name fold-this-persistent-folds-file))
+        (coding-system-for-write 'utf-8)
+        (version-control 'never))
+    (with-current-buffer (get-buffer-create " *Fold-this*")
+      (delete-region (point-min) (point-max))
+      (insert (format ";;; -*- coding: %s -*-\n"
+                      (symbol-name coding-system-for-write)))
+      (let ((print-length nil)
+            (print-level nil))
+        (pp fold-this--overlay-alist (current-buffer)))
+      (let ((version-control 'never))
+        (condition-case nil
+            (write-region (point-min) (point-max) file)
+          (file-error (message "Fold-this: can't write %s" file)))
+        (kill-buffer (current-buffer))))))
+
+(defun fold-this--load-alist-from-file ()
+  (progn
+    (let ((file (expand-file-name fold-this-persistent-folds-file)))
+      (when (file-readable-p file)
+        (with-current-buffer (get-buffer-create " *Fold-this*")
+          (delete-region (point-min) (point-max))
+          (insert-file-contents file)
+          (goto-char (point-min))
+          (setq fold-this--overlay-alist
+                (with-demoted-errors "Error reading fold-this-persistent-folds-file %S"
+                  (car (read-from-string
+                        (buffer-substring (point-min) (point-max))))))
+          (kill-buffer (current-buffer))))
+      nil)))
 
 (defun fold-this--walk-buffers-save-overlays ()
   "Walk the buffer list, save overlays to the alist"
