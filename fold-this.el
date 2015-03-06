@@ -53,7 +53,7 @@
   "Face used to highlight the fold overlay."
   :group 'fold-this)
 
-(defcustom fold-this-persistent-folds t
+(defcustom fold-this-persistent-folds nil
   "Non-nil means that folds survive buffer kills."
   :group 'fold-this
   :type 'boolean)
