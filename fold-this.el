@@ -54,7 +54,8 @@
   :group 'fold-this)
 
 (defcustom fold-this-persistent-folds nil
-  "Non-nil means that folds survive buffer kills."
+  "Non-nil means that folds survive between buffer kills and
+Emacs sessions."
   :group 'fold-this
   :type 'boolean)
 
@@ -62,6 +63,12 @@
   "A file to save persistent fold info to."
   :group 'fold-this
   :type 'file)
+
+(defcustom fold-this-persistent-folded-file-limit 30
+  "A max number of files for which folds persist. Nil for no limit."
+  :group 'fold-this
+  :type '(choice (integer :tag "Entries" :value 1)
+                 (const :tag "No Limit" nil)))
 
 ;;;###autoload
 (defun fold-this (beg end)
@@ -168,6 +175,8 @@
 
 (defun fold-this--save-alist-to-file ()
   (fold-this--clean-unreadable-files)
+  (when fold-this-persistent-folded-file-limit
+    (fold-this--check-fold-limit))
   (let ((file (expand-file-name fold-this-persistent-folds-file))
         (coding-system-for-write 'utf-8)
         (version-control 'never))
@@ -236,6 +245,15 @@
             (setq new (cons cell new)))))
       (setq fold-this--overlay-alist
             (nreverse new)))))
+
+(defun fold-this--check-fold-limit ()
+  "Check if there are more folds than possible, drop the tail of
+  the alist."
+  (when (> fold-this-persistent-folded-file-limit 0)
+    (let ((listlen (length fold-this--overlay-alist)))
+      (when (> listlen fold-this-persistent-folded-file-limit)
+        (setcdr (nthcdr (1- fold-this-persistent-folded-file-limit) fold-this--overlay-alist)
+                nil)))))
 
 (provide 'fold-this)
 ;;; fold-this.el ends here
