@@ -59,7 +59,7 @@ Emacs sessions."
   :group 'fold-this
   :type 'boolean)
 
-(defcustom fold-this-persistent-folds-file (locate-user-emacs-file "fold-this")
+(defcustom fold-this-persistent-folds-file (locate-user-emacs-file ".fold-this.el")
   "A file to save persistent fold info to."
   :group 'fold-this
   :type 'file)
