@@ -54,9 +54,21 @@
   :group 'fold-this)
 
 (defcustom fold-this-persistent-folds nil
-  "Non-nil means that folds survive buffer kills."
+  "Non-nil means that folds survive between buffer kills and
+Emacs sessions."
   :group 'fold-this
   :type 'boolean)
+
+(defcustom fold-this-persistent-folds-file (locate-user-emacs-file ".fold-this.el")
+  "A file to save persistent fold info to."
+  :group 'fold-this
+  :type 'file)
+
+(defcustom fold-this-persistent-folded-file-limit 30
+  "A max number of files for which folds persist. Nil for no limit."
+  :group 'fold-this
+  :type '(choice (integer :tag "Entries" :value 1)
+                 (const :tag "No Limit" nil)))
 
 ;;;###autoload
 (defun fold-this (beg end)
@@ -116,17 +128,21 @@
 
 ;;; Fold-this overlay persistence
 ;;
-;; TODO: strong overlay persistence (survive between Emacs sessions). Should
-;; probably be done the way saveplace is done.
 
 (defvar fold-this--overlay-alist nil
   "An alist of filenames mapped to fold overlay positions")
+
+(defvar fold-this--overlay-alist-loaded nil
+  "Non-nil if the alist has already been loaded")
 
 (defun fold-this--find-file-hook ()
   "A hook restoring fold overlays"
   (when (and fold-this-persistent-folds
              buffer-file-name
              (not (derived-mode-p 'dired-mode)))
+    (when (not fold-this--overlay-alist-loaded)
+      (fold-this--load-alist-from-file)
+      (setq fold-this--overlay-alist-loaded t))
     (let* ((file-name buffer-file-name)
            (cell (assoc file-name fold-this--overlay-alist)))
       (when cell
@@ -141,9 +157,67 @@
   (when (and fold-this-persistent-folds
              buffer-file-name
              (not (derived-mode-p 'dired-mode)))
+    (when (not fold-this--overlay-alist-loaded)
+      (fold-this--load-alist-from-file)
+      (setq fold-this--overlay-alist-loaded t))
     (mapc 'fold-this--save-overlay-to-alist
           (overlays-in (point-min) (point-max)))))
 (add-hook 'kill-buffer-hook 'fold-this--kill-buffer-hook)
+
+(defun fold-this--kill-emacs-hook ()
+  "A hook saving overlays in all buffers and dumping them into a
+  file"
+  (when (and fold-this-persistent-folds
+             fold-this--overlay-alist-loaded)
+    (fold-this--walk-buffers-save-overlays)
+    (fold-this--save-alist-to-file)))
+(add-hook 'kill-emacs-hook 'fold-this--kill-emacs-hook)
+
+(defun fold-this--save-alist-to-file ()
+  (fold-this--clean-unreadable-files)
+  (when fold-this-persistent-folded-file-limit
+    (fold-this--check-fold-limit))
+  (let ((file (expand-file-name fold-this-persistent-folds-file))
+        (coding-system-for-write 'utf-8)
+        (version-control 'never))
+    (with-current-buffer (get-buffer-create " *Fold-this*")
+      (delete-region (point-min) (point-max))
+      (insert (format ";;; -*- coding: %s -*-\n"
+                      (symbol-name coding-system-for-write)))
+      (let ((print-length nil)
+            (print-level nil))
+        (pp fold-this--overlay-alist (current-buffer)))
+      (let ((version-control 'never))
+        (condition-case nil
+            (write-region (point-min) (point-max) file)
+          (file-error (message "Fold-this: can't write %s" file)))
+        (kill-buffer (current-buffer))))))
+
+(defun fold-this--load-alist-from-file ()
+  (progn
+    (let ((file (expand-file-name fold-this-persistent-folds-file)))
+      (when (file-readable-p file)
+        (with-current-buffer (get-buffer-create " *Fold-this*")
+          (delete-region (point-min) (point-max))
+          (insert-file-contents file)
+          (goto-char (point-min))
+          (setq fold-this--overlay-alist
+                (with-demoted-errors "Error reading fold-this-persistent-folds-file %S"
+                  (car (read-from-string
+                        (buffer-substring (point-min) (point-max))))))
+          (kill-buffer (current-buffer))))
+      nil)))
+
+(defun fold-this--walk-buffers-save-overlays ()
+  "Walk the buffer list, save overlays to the alist"
+  (let ((buf-list (buffer-list)))
+    (while buf-list
+      (with-current-buffer (car buf-list)
+        (when (and buffer-file-name
+                   (not (derived-mode-p 'dired-mode)))
+          (mapc 'fold-this--save-overlay-to-alist
+                (overlays-in (point-min) (point-max))))
+        (setq buf-list (cdr buf-list))))))
 
 (defun fold-this--save-overlay-to-alist (overlay)
   "Add an overlay position pair to the alist"
@@ -158,6 +232,28 @@
       (setq fold-this--overlay-alist
             (cons (cons file-name (cons pos overlay-list))
                   fold-this--overlay-alist)))))
+
+(defun fold-this--clean-unreadable-files ()
+  "Check if files in the alist exist and are readable, drop
+  non-existing/non-readable ones"
+  (when fold-this--overlay-alist
+    (let ((orig fold-this--overlay-alist)
+          new)
+      (dolist (cell orig)
+        (let ((fname (car cell)))
+          (when (file-readable-p fname)
+            (setq new (cons cell new)))))
+      (setq fold-this--overlay-alist
+            (nreverse new)))))
+
+(defun fold-this--check-fold-limit ()
+  "Check if there are more folds than possible, drop the tail of
+  the alist."
+  (when (> fold-this-persistent-folded-file-limit 0)
+    (let ((listlen (length fold-this--overlay-alist)))
+      (when (> listlen fold-this-persistent-folded-file-limit)
+        (setcdr (nthcdr (1- fold-this-persistent-folded-file-limit) fold-this--overlay-alist)
+                nil)))))
 
 (provide 'fold-this)
 ;;; fold-this.el ends here
