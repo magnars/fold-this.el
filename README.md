@@ -42,10 +42,11 @@ You can customize the visuals of the folded region by changing
 
 - [Dewdrops](https://github.com/Dewdrops) contributed `fold-active-region` and `fold-active-region-all`
 - [Fuco1](https://github.com/Fuco1) added folded region face customization.
+- [Vladimir Kazanov](https://github.com/vkazanov) let folds survive buffer kills via `fold-this-persistent-folds`.
 
 ## License
 
-Copyright (C) 2012-2013 Magnar Sveen
+Copyright (C) 2012-2015 Magnar Sveen
 
 Author: Magnar Sveen <magnars@gmail.com>
 Keywords: convenience
