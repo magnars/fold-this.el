@@ -167,6 +167,7 @@
 (add-hook 'kill-emacs-hook 'fold-this--kill-emacs-hook)
 
 (defun fold-this--save-alist-to-file ()
+  (fold-this--clean-unreadable-files)
   (let ((file (expand-file-name fold-this-persistent-folds-file))
         (coding-system-for-write 'utf-8)
         (version-control 'never))
@@ -222,6 +223,19 @@
       (setq fold-this--overlay-alist
             (cons (cons file-name (cons pos overlay-list))
                   fold-this--overlay-alist)))))
+
+(defun fold-this--clean-unreadable-files ()
+  "Check if files in the alist exist and are readable, drop
+  non-existing/non-readable ones"
+  (when fold-this--overlay-alist
+    (let ((orig fold-this--overlay-alist)
+          new)
+      (dolist (cell orig)
+        (let ((fname (car cell)))
+          (when (file-readable-p fname)
+            (setq new (cons cell new)))))
+      (setq fold-this--overlay-alist
+            (nreverse new)))))
 
 (provide 'fold-this)
 ;;; fold-this.el ends here
