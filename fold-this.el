@@ -3,8 +3,9 @@
 ;; Copyright (C) 2012-2013 Magnar Sveen <magnars@gmail.com>
 
 ;; Author: Magnar Sveen <magnars@gmail.com>
-;; Version: 0.3.0
+;; Version: 0.4.0
 ;; Keywords: convenience
+;; Homepage: https://github.com/magnars/fold-this.el
 
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License
@@ -32,28 +33,44 @@
 ;;
 ;; You can fold all instances of the text in the region with `fold-this-all`.
 ;;
-;; ## Setup
-;;
-;; I won't presume to know which keys you want these functions bound to,
-;; so you'll have to set that up for yourself. Here's some example code,
-;; which incidentally is what I use:
-;;
-;;     (global-set-key (kbd "C-c C-f") 'fold-this-all)
-;;     (global-set-key (kbd "C-c C-F") 'fold-this)
-;;     (global-set-key (kbd "C-c M-f") 'fold-this-unfold-all)
-
 ;;; Code:
-
 (require 'thingatpt)
 
-(defvar fold-this-keymap (make-sparse-keymap))
-(define-key fold-this-keymap (kbd "<return>") 'fold-this-unfold-at-point)
-(define-key fold-this-keymap (kbd "C-g") 'fold-this-unfold-at-point)
+(defgroup fold-this nil
+  "Just fold this region please."
+  :prefix "fold-this-"
+  :group 'languages)
+
+(defcustom fold-this-mode-key-prefix (kbd "C-c") ;; [?\C-c]
+  "The prefix key for `fold-this-mode' commands."
+  :group 'fold-this
+  :type 'sexp)
+
+(defvar fold-this--overlay-keymap (make-sparse-keymap)
+  "Keymap for `fold-this' but only on the overlay.")
+
+(define-key fold-this--overlay-keymap (kbd "<return>") 'fold-this-unfold-at-point)
+(define-key fold-this--overlay-keymap (kbd "C-g") 'fold-this-unfold-at-point)
+
+(defvar fold-this-keymap
+  (let ((map (make-sparse-keymap)))
+    (let ((prefix-map (make-sparse-keymap)))
+      (define-key prefix-map (kbd "C-f") 'fold-this)
+      (define-key prefix-map (kbd "M-C-f") 'fold-this-all)
+      (define-key prefix-map (kbd "M-f") 'fold-this-unfold-all)
+    (define-key map fold-this-mode-key-prefix prefix-map)
+    map))
+  "Keymap for `fold-this'.")
 
 (defface fold-this-overlay
-  '((t (:inherit default)))
+  '((t (:inherit default :foreground "green")))
   "Face used to highlight the fold overlay."
   :group 'fold-this)
+
+(defcustom fold-this-overlay-text "[[…]]"
+  "Default textt for `fold-this-mode' overlays."
+  :group 'fold-this
+  :type 'string)
 
 (defcustom fold-this-persistent-folds nil
   "Non-nil means that folds survive between buffer kills and
@@ -79,12 +96,11 @@ Emacs sessions."
 If FOLD-HEADER is specified, show this text in place of the
 folded region.  If not, default to three dots: ..."
   (interactive "r")
-  (setq fold-header (or fold-header "..."))
-  (let ((o (make-overlay beg end nil t nil)))
+  (let ((fold-header (or fold-header "..."))
+	(o (make-overlay (1+ beg) (1- end) nil t nil)))
     (overlay-put o 'type 'fold-this)
     (overlay-put o 'invisible t)
-    (overlay-put o 'keymap fold-this-keymap)
-    (overlay-put o 'invisible t)
+    (overlay-put o 'keymap fold-this--overlay-keymap)
     (overlay-put o 'isearch-open-invisible-temporary
                  (lambda (o action)
                    (if action
@@ -136,7 +152,7 @@ is in front of a sexp, fold the following sexp."
       (fold-this (car region) (cdr region) header))))
 
 ;;;###autoload
-(defun fold-this-all (beg end)
+(defun fold-this-all (_beg _end)
   (interactive "r")
   (let ((string (buffer-substring (region-beginning)
                                   (region-end))))
@@ -174,7 +190,7 @@ is in front of a sexp, fold the following sexp."
   (when (eq (overlay-get it 'type) 'fold-this)
     (delete-overlay it)))
 
-(defun fold-this--unfold-overlay (overlay after? beg end &optional length)
+(defun fold-this--unfold-overlay (overlay _after? _beg _end &optional _length)
   (delete-overlay overlay))
 
 ;;; Fold-this overlay persistence
@@ -191,7 +207,7 @@ is in front of a sexp, fold the following sexp."
   (when (and fold-this-persistent-folds
              buffer-file-name
              (not (derived-mode-p 'dired-mode)))
-    (when (not fold-this--overlay-alist-loaded)
+    (unless fold-this--overlay-alist
       (fold-this--load-alist-from-file)
       (setq fold-this--overlay-alist-loaded t))
     (let* ((file-name buffer-file-name)
@@ -200,8 +216,8 @@ is in front of a sexp, fold the following sexp."
         (mapc (lambda (pair) (fold-this (car pair) (cdr pair)))
               (cdr cell))
         (setq fold-this--overlay-alist
-              (delq cell fold-this--overlay-alist))))))
-(add-hook 'find-file-hook 'fold-this--find-file-hook)
+              (delq cell fold-this--overlay-alist))
+	(fold-this-mode 1)))))
 
 (defun fold-this--kill-buffer-hook ()
   "A hook saving overlays"
@@ -213,7 +229,6 @@ is in front of a sexp, fold the following sexp."
       (setq fold-this--overlay-alist-loaded t))
     (mapc 'fold-this--save-overlay-to-alist
           (overlays-in (point-min) (point-max)))))
-(add-hook 'kill-buffer-hook 'fold-this--kill-buffer-hook)
 
 (defun fold-this--kill-emacs-hook ()
   "A hook saving overlays in all buffers and dumping them into a
@@ -222,7 +237,6 @@ is in front of a sexp, fold the following sexp."
              fold-this--overlay-alist-loaded)
     (fold-this--walk-buffers-save-overlays)
     (fold-this--save-alist-to-file)))
-(add-hook 'kill-emacs-hook 'fold-this--kill-emacs-hook)
 
 (defun fold-this--save-alist-to-file ()
   (fold-this--clean-unreadable-files)
@@ -273,7 +287,7 @@ is in front of a sexp, fold the following sexp."
 (defun fold-this--save-overlay-to-alist (overlay)
   "Add an overlay position pair to the alist"
   (when (eq (overlay-get overlay 'type) 'fold-this)
-    (let* ((pos (cons (overlay-start overlay) (overlay-end overlay)))
+    (let* ((pos (cons (1- (overlay-start overlay)) (1+ (overlay-end overlay))))
            (file-name buffer-file-name)
            (cell (assoc file-name fold-this--overlay-alist))
            overlay-list)
@@ -305,6 +319,36 @@ is in front of a sexp, fold the following sexp."
       (when (> listlen fold-this-persistent-folded-file-limit)
         (setcdr (nthcdr (1- fold-this-persistent-folded-file-limit) fold-this--overlay-alist)
                 nil)))))
+
+;;;###autoload
+(define-minor-mode fold-this-mode
+  "Toggle folding on or off.
+With folding activated add custom map \\[fold-this-keymap]"
+  :lighter (:eval (concat " " fold-this-overlay-text))
+  :keymap fold-this-keymap
+  :group 'fold-this
+  :init-value nil
+  (unless fold-this-mode
+    (fold-this-unfold-all)))
+
+;;;###autoload
+(define-minor-mode fold-this-persistent-mode
+  "Enable persistence of overlays for `fold-this-mode'"
+  :global t
+  :group 'fold-this
+  :lighter " ft-p"
+  (if fold-this-persistent-mode
+      (progn
+	(unless fold-this-persistent-folds
+	  (setq fold-this-persistent-folds t))
+	(add-hook 'find-file-hook   #'fold-this--find-file-hook)
+	(add-hook 'kill-buffer-hook #'fold-this--kill-buffer-hook)
+	(add-hook 'kill-emacs-hook  #'fold-this--kill-emacs-hook))
+    (progn
+      (setq fold-this-persistent-folds (get fold-this-persistent-folds 'standard-value))
+      (remove-hook 'find-file-hook 'fold-this--find-file-hook)
+      (remove-hook 'kill-buffer-hook 'fold-this--kill-buffer-hook)
+      (remove-hook 'kill-emacs-hook 'fold-this--kill-emacs-hook))))
 
 (provide 'fold-this)
 ;;; fold-this.el ends here
