@@ -26,7 +26,7 @@
 ;;
 ;; ## How it works
 ;;
-;; The command `fold-this` visually replaces the current region with `...`.
+;; The command `fold-this` visually replaces the current region with `[[…]]`.
 ;; If you move point into the ellipsis and press enter or `C-g` it is unfolded.
 ;;
 ;; You can unfold everything with `fold-this-unfold-all`.
@@ -41,16 +41,17 @@
   :prefix "fold-this-"
   :group 'languages)
 
-(defcustom fold-this-mode-key-prefix (kbd "C-c") ;; [?\C-c]
+(defcustom fold-this-mode-key-prefix (kbd "C-c")
   "The prefix key for `fold-this-mode' commands."
   :group 'fold-this
   :type 'sexp)
 
-(defvar fold-this--overlay-keymap (make-sparse-keymap)
+(defvar fold-this--overlay-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "<return>") 'fold-this-unfold-at-point)
+    (define-key map (kbd "C-g") 'fold-this-unfold-at-point)
+    map)
   "Keymap for `fold-this' but only on the overlay.")
-
-(define-key fold-this--overlay-keymap (kbd "<return>") 'fold-this-unfold-at-point)
-(define-key fold-this--overlay-keymap (kbd "C-g") 'fold-this-unfold-at-point)
 
 (defvar fold-this-keymap
   (let ((map (make-sparse-keymap)))
@@ -117,7 +118,6 @@ folded region.  If not, default to three dots: ..."
     (overlay-put o 'evaporate t))
   (deactivate-mark))
 
-
 ;;;###autoload
 (defun fold-this-sexp ()
   "Fold sexp around point.
@@ -162,25 +162,21 @@ is in front of a sexp, fold the following sexp."
         (fold-this (match-beginning 0) (match-end 0)))))
   (deactivate-mark))
 
-;;;###autoload
 (defun fold-active-region (beg end)
   (interactive "r")
   (when (region-active-p)
     (fold-this beg end)))
 
-;;;###autoload
 (defun fold-active-region-all (beg end)
   (interactive "r")
   (when (region-active-p)
     (fold-this-all beg end)))
 
-;;;###autoload
 (defun fold-this-unfold-all ()
   (interactive)
   (mapc 'fold-this--delete-my-overlay
         (overlays-in (point-min) (point-max))))
 
-;;;###autoload
 (defun fold-this-unfold-at-point ()
   (interactive)
   (mapc 'fold-this--delete-my-overlay
