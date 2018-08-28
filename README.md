@@ -11,6 +11,8 @@ You can unfold everything with `fold-this-unfold-all`.
 
 You can fold all instances of the text in the region with `fold-this-all`.
 
+In lisp-like modes you can fold an s-expression around point with `fold-this-sexp`.
+
 ## Installation
 
 It is available on [marmalade](http://marmalade-repo.org/) and [Melpa](http://melpa.milkbox.net/):
