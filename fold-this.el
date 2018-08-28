@@ -72,6 +72,10 @@ Emacs sessions."
 
 ;;;###autoload
 (defun fold-this (beg end &optional fold-header)
+  "Fold the region between BEG and END.
+
+If FOLD-HEADER is specified, show this text in place of the
+folded region.  If not, default to three dots: ..."
   (interactive "r")
   (setq fold-header (or fold-header "..."))
   (let ((o (make-overlay beg end nil t nil)))
