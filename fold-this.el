@@ -44,6 +44,8 @@
 
 ;;; Code:
 
+(require 'thingatpt)
+
 (defvar fold-this-keymap (make-sparse-keymap))
 (define-key fold-this-keymap (kbd "<return>") 'fold-this-unfold-at-point)
 (define-key fold-this-keymap (kbd "C-g") 'fold-this-unfold-at-point)
@@ -98,6 +100,40 @@ folded region.  If not, default to three dots: ..."
     (overlay-put o 'display (propertize fold-header 'face 'fold-this-overlay))
     (overlay-put o 'evaporate t))
   (deactivate-mark))
+
+
+;;;###autoload
+(defun fold-this-sexp ()
+  "Fold sexp around point.
+
+If the point is at a symbol, fold the parent sexp.  If the point
+is in front of a sexp, fold the following sexp."
+  (interactive)
+  (let* ((region
+          (cond
+           ((symbol-at-point)
+            (save-excursion
+              (when (nth 3 (syntax-ppss))
+                (goto-char (nth 8 (syntax-ppss))))
+              (backward-up-list)
+              (cons (point)
+                    (progn
+                      (forward-sexp)
+                      (point)))))
+           ((looking-at-p (rx (* blank) "("))
+            (save-excursion
+              (skip-syntax-forward " ")
+              (cons (point)
+                    (progn
+                      (forward-sexp)
+                      (point)))))
+           (t nil)))
+         (header (when region
+                   (save-excursion
+                     (goto-char (car region))
+                     (buffer-substring (point) (line-end-position))))))
+    (when region
+      (fold-this (car region) (cdr region) header))))
 
 ;;;###autoload
 (defun fold-this-all (beg end)
