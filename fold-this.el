@@ -95,9 +95,9 @@ Emacs sessions."
   "Fold the region between BEG and END.
 
 If FOLD-HEADER is specified, show this text in place of the
-folded region.  If not, default to three dots: ..."
+folded region.  If not, default to `fold-this-overlay-text'."
   (interactive "r")
-  (let ((fold-header (or fold-header "..."))
+  (let ((fold-header (or fold-header fold-this-overlay-text))
 	(o (make-overlay (1+ beg) (1- end) nil t nil)))
     (overlay-put o 'type 'fold-this)
     (overlay-put o 'invisible t)
