@@ -98,7 +98,7 @@ If FOLD-HEADER is specified, show this text in place of the
 folded region.  If not, default to `fold-this-overlay-text'."
   (interactive "r")
   (let ((fold-header (or fold-header fold-this-overlay-text))
-	(o (make-overlay (1+ beg) (1- end) nil t nil)))
+        (o (make-overlay (1+ beg) (1- end) nil t nil)))
     (overlay-put o 'type 'fold-this)
     (overlay-put o 'invisible t)
     (overlay-put o 'keymap fold-this--overlay-keymap)
@@ -213,7 +213,7 @@ is in front of a sexp, fold the following sexp."
               (cdr cell))
         (setq fold-this--overlay-alist
               (delq cell fold-this--overlay-alist))
-	(fold-this-mode 1)))))
+        (fold-this-mode 1)))))
 
 (defun fold-this--kill-buffer-hook ()
   "A hook saving overlays"
@@ -335,11 +335,11 @@ With folding activated add custom map \\[fold-this-keymap]"
   :lighter " ft-p"
   (if fold-this-persistent-mode
       (progn
-	(unless fold-this-persistent-folds
-	  (setq fold-this-persistent-folds t))
-	(add-hook 'find-file-hook   #'fold-this--find-file-hook)
-	(add-hook 'kill-buffer-hook #'fold-this--kill-buffer-hook)
-	(add-hook 'kill-emacs-hook  #'fold-this--kill-emacs-hook))
+        (unless fold-this-persistent-folds
+          (setq fold-this-persistent-folds t))
+        (add-hook 'find-file-hook   #'fold-this--find-file-hook)
+        (add-hook 'kill-buffer-hook #'fold-this--kill-buffer-hook)
+        (add-hook 'kill-emacs-hook  #'fold-this--kill-emacs-hook))
     (progn
       (setq fold-this-persistent-folds (get fold-this-persistent-folds 'standard-value))
       (remove-hook 'find-file-hook 'fold-this--find-file-hook)
