@@ -3,7 +3,7 @@
 ;; Copyright (C) 2012-2013 Magnar Sveen <magnars@gmail.com>
 
 ;; Author: Magnar Sveen <magnars@gmail.com>
-;; Version: 0.4.0
+;; Version: 0.4.1
 ;; Keywords: convenience
 ;; Homepage: https://github.com/magnars/fold-this.el
 
@@ -223,7 +223,8 @@ is in front of a sexp, fold the following sexp."
       ;; is it even possible ?
       (fold-this--load-alist-from-file))
     (mapc 'fold-this--save-overlay-to-alist
-          (overlays-in (point-min) (point-max)))))
+          (overlays-in (point-min) (point-max)))
+    (fold-this--save-alist-to-file)))
 
 (defun fold-this--kill-emacs-hook ()
   "A hook saving overlays in all buffers and dumping them into a
@@ -274,6 +275,9 @@ is in front of a sexp, fold the following sexp."
       (with-current-buffer (car buf-list)
         (when (and buffer-file-name
                    (not (derived-mode-p 'dired-mode)))
+          (setq fold-this--overlay-alist
+                (delq (assoc buffer-file-name fold-this--overlay-alist)
+                      fold-this--overlay-alist))
           (mapc 'fold-this--save-overlay-to-alist
                 (overlays-in (point-min) (point-max))))
         (setq buf-list (cdr buf-list))))))
@@ -285,12 +289,14 @@ is in front of a sexp, fold the following sexp."
            (file-name buffer-file-name)
            (cell (assoc file-name fold-this--overlay-alist))
            overlay-list)
-      (when cell (setq fold-this--overlay-alist
-                       (delq cell fold-this--overlay-alist))
-            (setq overlay-list (cdr cell)))
-      (setq fold-this--overlay-alist
-            (cons (cons file-name (cons pos overlay-list))
-                  fold-this--overlay-alist)))))
+      (unless (member pos cell) ;; only if overlay is not already there
+        (when cell
+          (setq fold-this--overlay-alist
+                (delq cell fold-this--overlay-alist)
+                overlay-list (delq pos (cdr cell))))
+        (setq fold-this--overlay-alist
+              (cons (cons file-name (cons pos overlay-list))
+                    fold-this--overlay-alist))))))
 
 (defun fold-this--clean-unreadable-files ()
   "Check if files in the alist exist and are readable, drop
