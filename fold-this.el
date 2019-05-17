@@ -203,9 +203,8 @@ is in front of a sexp, fold the following sexp."
   (when (and fold-this-persistent-folds
              buffer-file-name
              (not (derived-mode-p 'dired-mode)))
-    (unless fold-this--overlay-alist
-      (fold-this--load-alist-from-file)
-      (setq fold-this--overlay-alist-loaded t))
+    (when (not fold-this--overlay-alist-loaded)
+      (fold-this--load-alist-from-file))
     (let* ((file-name buffer-file-name)
            (cell (assoc file-name fold-this--overlay-alist)))
       (when cell
@@ -221,8 +220,8 @@ is in front of a sexp, fold the following sexp."
              buffer-file-name
              (not (derived-mode-p 'dired-mode)))
     (when (not fold-this--overlay-alist-loaded)
-      (fold-this--load-alist-from-file)
-      (setq fold-this--overlay-alist-loaded t))
+      ;; is it even possible ?
+      (fold-this--load-alist-from-file))
     (mapc 'fold-this--save-overlay-to-alist
           (overlays-in (point-min) (point-max)))))
 
@@ -255,19 +254,18 @@ is in front of a sexp, fold the following sexp."
         (kill-buffer (current-buffer))))))
 
 (defun fold-this--load-alist-from-file ()
-  (progn
-    (let ((file (expand-file-name fold-this-persistent-folds-file)))
-      (when (file-readable-p file)
-        (with-current-buffer (get-buffer-create " *Fold-this*")
-          (delete-region (point-min) (point-max))
-          (insert-file-contents file)
-          (goto-char (point-min))
-          (setq fold-this--overlay-alist
-                (with-demoted-errors "Error reading fold-this-persistent-folds-file %S"
-                  (car (read-from-string
-                        (buffer-substring (point-min) (point-max))))))
-          (kill-buffer (current-buffer))))
-      nil)))
+  (let ((file (expand-file-name fold-this-persistent-folds-file)))
+    (when (file-readable-p file)
+      (with-current-buffer (get-buffer-create " *Fold-this*")
+        (delete-region (point-min) (point-max))
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (setq fold-this--overlay-alist
+              (with-demoted-errors "Error reading fold-this-persistent-folds-file %S"
+                (car (read-from-string
+                      (buffer-substring (point-min) (point-max))))))
+        (kill-buffer (current-buffer))))
+    (setq fold-this--overlay-alist-loaded t)))
 
 (defun fold-this--walk-buffers-save-overlays ()
   "Walk the buffer list, save overlays to the alist"
