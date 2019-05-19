@@ -3,7 +3,7 @@
 ;; Copyright (C) 2012-2013 Magnar Sveen <magnars@gmail.com>
 
 ;; Author: Magnar Sveen <magnars@gmail.com>
-;; Version: 0.4.0
+;; Version: 0.4.1
 ;; Keywords: convenience
 ;; Homepage: https://github.com/magnars/fold-this.el
 
@@ -98,7 +98,7 @@ If FOLD-HEADER is specified, show this text in place of the
 folded region.  If not, default to `fold-this-overlay-text'."
   (interactive "r")
   (let ((fold-header (or fold-header fold-this-overlay-text))
-	(o (make-overlay (1+ beg) (1- end) nil t nil)))
+        (o (make-overlay (1+ beg) (1- end) nil t nil)))
     (overlay-put o 'type 'fold-this)
     (overlay-put o 'invisible t)
     (overlay-put o 'keymap fold-this--overlay-keymap)
@@ -203,9 +203,8 @@ is in front of a sexp, fold the following sexp."
   (when (and fold-this-persistent-folds
              buffer-file-name
              (not (derived-mode-p 'dired-mode)))
-    (unless fold-this--overlay-alist
-      (fold-this--load-alist-from-file)
-      (setq fold-this--overlay-alist-loaded t))
+    (when (not fold-this--overlay-alist-loaded)
+      (fold-this--load-alist-from-file))
     (let* ((file-name buffer-file-name)
            (cell (assoc file-name fold-this--overlay-alist)))
       (when cell
@@ -213,7 +212,7 @@ is in front of a sexp, fold the following sexp."
               (cdr cell))
         (setq fold-this--overlay-alist
               (delq cell fold-this--overlay-alist))
-	(fold-this-mode 1)))))
+        (fold-this-mode 1)))))
 
 (defun fold-this--kill-buffer-hook ()
   "A hook saving overlays"
@@ -221,10 +220,11 @@ is in front of a sexp, fold the following sexp."
              buffer-file-name
              (not (derived-mode-p 'dired-mode)))
     (when (not fold-this--overlay-alist-loaded)
-      (fold-this--load-alist-from-file)
-      (setq fold-this--overlay-alist-loaded t))
+      ;; is it even possible ?
+      (fold-this--load-alist-from-file))
     (mapc 'fold-this--save-overlay-to-alist
-          (overlays-in (point-min) (point-max)))))
+          (overlays-in (point-min) (point-max)))
+    (fold-this--save-alist-to-file)))
 
 (defun fold-this--kill-emacs-hook ()
   "A hook saving overlays in all buffers and dumping them into a
@@ -255,19 +255,18 @@ is in front of a sexp, fold the following sexp."
         (kill-buffer (current-buffer))))))
 
 (defun fold-this--load-alist-from-file ()
-  (progn
-    (let ((file (expand-file-name fold-this-persistent-folds-file)))
-      (when (file-readable-p file)
-        (with-current-buffer (get-buffer-create " *Fold-this*")
-          (delete-region (point-min) (point-max))
-          (insert-file-contents file)
-          (goto-char (point-min))
-          (setq fold-this--overlay-alist
-                (with-demoted-errors "Error reading fold-this-persistent-folds-file %S"
-                  (car (read-from-string
-                        (buffer-substring (point-min) (point-max))))))
-          (kill-buffer (current-buffer))))
-      nil)))
+  (let ((file (expand-file-name fold-this-persistent-folds-file)))
+    (when (file-readable-p file)
+      (with-current-buffer (get-buffer-create " *Fold-this*")
+        (delete-region (point-min) (point-max))
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (setq fold-this--overlay-alist
+              (with-demoted-errors "Error reading fold-this-persistent-folds-file %S"
+                (car (read-from-string
+                      (buffer-substring (point-min) (point-max))))))
+        (kill-buffer (current-buffer))))
+    (setq fold-this--overlay-alist-loaded t)))
 
 (defun fold-this--walk-buffers-save-overlays ()
   "Walk the buffer list, save overlays to the alist"
@@ -276,6 +275,9 @@ is in front of a sexp, fold the following sexp."
       (with-current-buffer (car buf-list)
         (when (and buffer-file-name
                    (not (derived-mode-p 'dired-mode)))
+          (setq fold-this--overlay-alist
+                (delq (assoc buffer-file-name fold-this--overlay-alist)
+                      fold-this--overlay-alist))
           (mapc 'fold-this--save-overlay-to-alist
                 (overlays-in (point-min) (point-max))))
         (setq buf-list (cdr buf-list))))))
@@ -287,12 +289,14 @@ is in front of a sexp, fold the following sexp."
            (file-name buffer-file-name)
            (cell (assoc file-name fold-this--overlay-alist))
            overlay-list)
-      (when cell (setq fold-this--overlay-alist
-                       (delq cell fold-this--overlay-alist))
-            (setq overlay-list (cdr cell)))
-      (setq fold-this--overlay-alist
-            (cons (cons file-name (cons pos overlay-list))
-                  fold-this--overlay-alist)))))
+      (unless (member pos cell) ;; only if overlay is not already there
+        (when cell
+          (setq fold-this--overlay-alist
+                (delq cell fold-this--overlay-alist)
+                overlay-list (delq pos (cdr cell))))
+        (setq fold-this--overlay-alist
+              (cons (cons file-name (cons pos overlay-list))
+                    fold-this--overlay-alist))))))
 
 (defun fold-this--clean-unreadable-files ()
   "Check if files in the alist exist and are readable, drop
@@ -335,11 +339,11 @@ With folding activated add custom map \\[fold-this-keymap]"
   :lighter " ft-p"
   (if fold-this-persistent-mode
       (progn
-	(unless fold-this-persistent-folds
-	  (setq fold-this-persistent-folds t))
-	(add-hook 'find-file-hook   #'fold-this--find-file-hook)
-	(add-hook 'kill-buffer-hook #'fold-this--kill-buffer-hook)
-	(add-hook 'kill-emacs-hook  #'fold-this--kill-emacs-hook))
+        (unless fold-this-persistent-folds
+          (setq fold-this-persistent-folds t))
+        (add-hook 'find-file-hook   #'fold-this--find-file-hook)
+        (add-hook 'kill-buffer-hook #'fold-this--kill-buffer-hook)
+        (add-hook 'kill-emacs-hook  #'fold-this--kill-emacs-hook))
     (progn
       (setq fold-this-persistent-folds (get fold-this-persistent-folds 'standard-value))
       (remove-hook 'find-file-hook 'fold-this--find-file-hook)
