@@ -224,7 +224,8 @@ is in front of a sexp, fold the following sexp."
       (fold-this--load-alist-from-file))
     (mapc 'fold-this--save-overlay-to-alist
           (overlays-in (point-min) (point-max)))
-    (fold-this--save-alist-to-file)))
+    (when (alist-get buffer-file-name fold-this--overlay-alist)
+      (fold-this--save-alist-to-file))))
 
 (defun fold-this--kill-emacs-hook ()
   "A hook saving overlays in all buffers and dumping them into a
