@@ -3,7 +3,7 @@
 ;; Copyright (C) 2012-2013 Magnar Sveen <magnars@gmail.com>
 
 ;; Author: Magnar Sveen <magnars@gmail.com>
-;; Version: 0.4.2
+;; Version: 0.4.3
 ;; Keywords: convenience
 ;; Homepage: https://github.com/magnars/fold-this.el
 
@@ -42,7 +42,7 @@
   :group 'languages)
 
 (defcustom fold-this-mode-key-prefix (kbd "C-c")
-  "The prefix key for `fold-this-mode' commands."
+  "The prefix key for `fold-this' mode commands."
   :group 'fold-this
   :type 'sexp)
 
@@ -69,13 +69,14 @@
   :group 'fold-this)
 
 (defcustom fold-this-overlay-text "[[…]]"
-  "Default textt for `fold-this-mode' overlays."
+  "Default textt for `fold-this' mode overlays."
   :group 'fold-this
   :type 'string)
 
 (defcustom fold-this-persistent-folds nil
-  "Non-nil means that folds survive between buffer kills and
-Emacs sessions."
+  "Should folds survive buffer kills and Emacs sessions.
+Non-nil means that folds should survive buffers killing and Emacs
+sessions. "
   :group 'fold-this
   :type 'boolean)
 
@@ -85,7 +86,7 @@ Emacs sessions."
   :type 'file)
 
 (defcustom fold-this-persistent-folded-file-limit 30
-  "A max number of files for which folds persist. Nil for no limit."
+  "A max number of files for which folds persist.  Nil for no limit."
   :group 'fold-this
   :type '(choice (integer :tag "Entries" :value 1)
                  (const :tag "No Limit" nil)))
@@ -113,7 +114,7 @@ folded region.  If not, default to `fold-this-overlay-text'."
                        (overlay-put o 'invisible nil)))))
     (overlay-put o 'isearch-open-invisible (lambda (o) (fold-this-unfold-at-point)))
     (overlay-put o 'face 'fold-this-overlay)
-    (overlay-put o 'modification-hooks '(fold-this--unfold-overlay))
+    (overlay-put o 'modification-hooks '(fold-this--delete-my-overlay))
     (overlay-put o 'display (propertize fold-header 'face 'fold-this-overlay))
     (overlay-put o 'evaporate t))
   (deactivate-mark))
@@ -153,6 +154,7 @@ is in front of a sexp, fold the following sexp."
 
 ;;;###autoload
 (defun fold-this-all (_beg _end)
+  "Fold  all occurences of text in region."
   (interactive "r")
   (let ((string (buffer-substring (region-beginning)
                                   (region-end))))
@@ -173,33 +175,34 @@ is in front of a sexp, fold the following sexp."
     (fold-this-all beg end)))
 
 (defun fold-this-unfold-all ()
+  "Unfold all overlays in current buffer.
+If narrowing is active, only in it."
   (interactive)
   (mapc 'fold-this--delete-my-overlay
         (overlays-in (point-min) (point-max))))
 
 (defun fold-this-unfold-at-point ()
+  "Unfold at point."
   (interactive)
   (mapc 'fold-this--delete-my-overlay
         (overlays-at (point))))
 
-(defun fold-this--delete-my-overlay (it)
+(defun fold-this--delete-my-overlay (overlay _after? _beg _end &optional _length)
+  "Delete the OVERLAY overlays only if it's an `fold-this'."
   (when (eq (overlay-get it 'type) 'fold-this)
     (delete-overlay it)))
-
-(defun fold-this--unfold-overlay (overlay _after? _beg _end &optional _length)
-  (delete-overlay overlay))
 
 ;;; Fold-this overlay persistence
 ;;
 
 (defvar fold-this--overlay-alist nil
-  "An alist of filenames mapped to fold overlay positions")
+  "An alist of filenames mapped to fold overlay positions.")
 
 (defvar fold-this--overlay-alist-loaded nil
-  "Non-nil if the alist has already been loaded")
+  "Non-nil if the alist has already been loaded.")
 
 (defun fold-this--find-file-hook ()
-  "A hook restoring fold overlays"
+  "A hook restoring fold overlays."
   (when (and fold-this-persistent-folds
              buffer-file-name
              (not (derived-mode-p 'dired-mode)))
@@ -215,7 +218,7 @@ is in front of a sexp, fold the following sexp."
         (fold-this-mode 1)))))
 
 (defun fold-this--kill-buffer-hook ()
-  "A hook saving overlays"
+  "A hook saving overlays."
   (when (and fold-this-persistent-folds
              buffer-file-name
              (not (derived-mode-p 'dired-mode)))
@@ -230,14 +233,14 @@ is in front of a sexp, fold the following sexp."
       (fold-this--save-alist-to-file))))
 
 (defun fold-this--kill-emacs-hook ()
-  "A hook saving overlays in all buffers and dumping them into a
-  file"
+  "A hook saving overlays in all buffers and dumping them into a file."
   (when (and fold-this-persistent-folds
              fold-this--overlay-alist-loaded)
     (fold-this--walk-buffers-save-overlays)
     (fold-this--save-alist-to-file)))
 
 (defun fold-this--save-alist-to-file ()
+  "Save current overlay alist to file."
   (fold-this--clean-unreadable-files)
   (when fold-this-persistent-folded-file-limit
     (fold-this--check-fold-limit))
@@ -258,6 +261,7 @@ is in front of a sexp, fold the following sexp."
         (kill-buffer (current-buffer))))))
 
 (defun fold-this--load-alist-from-file ()
+  "Restore ovelay alist `fold-this--overlay-alist' from file."
   (let ((file (expand-file-name fold-this-persistent-folds-file)))
     (when (file-readable-p file)
       (with-current-buffer (get-buffer-create " *Fold-this*")
@@ -272,7 +276,7 @@ is in front of a sexp, fold the following sexp."
     (setq fold-this--overlay-alist-loaded t)))
 
 (defun fold-this--walk-buffers-save-overlays ()
-  "Walk the buffer list, save overlays to the alist"
+  "Walk the buffer list, save overlays to the alist."
   (let ((buf-list (buffer-list)))
     (while buf-list
       (with-current-buffer (car buf-list)
@@ -304,8 +308,8 @@ is in front of a sexp, fold the following sexp."
                     fold-this--overlay-alist))))))
 
 (defun fold-this--clean-unreadable-files ()
-  "Check if files in the alist exist and are readable, drop
-  non-existing/non-readable ones"
+  "Check if files in the alist exist and are readable.
+Drop non-existing/non-readable ones."
   (when fold-this--overlay-alist
     (let ((orig fold-this--overlay-alist)
           new)
@@ -317,8 +321,8 @@ is in front of a sexp, fold the following sexp."
             (nreverse new)))))
 
 (defun fold-this--check-fold-limit ()
-  "Check if there are more folds than possible, drop the tail of
-  the alist."
+  "Check if there are more folds than possible.
+Drop the tail of the alist."
   (when (> fold-this-persistent-folded-file-limit 0)
     (let ((listlen (length fold-this--overlay-alist)))
       (when (> listlen fold-this-persistent-folded-file-limit)
