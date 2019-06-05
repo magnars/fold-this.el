@@ -225,8 +225,10 @@ If narrowing is active, only in it."
     (when (not fold-this--overlay-alist-loaded)
       ;; is it even possible ?
       (fold-this--load-alist-from-file))
-    (mapc 'fold-this--save-overlay-to-alist
-          (overlays-in (point-min) (point-max)))
+    (save-restriction
+      (widen)
+      (mapc 'fold-this--save-overlay-to-alist
+	    (overlays-in (point-min) (point-max))))
     (when (alist-get buffer-file-name fold-this--overlay-alist)
       (fold-this--save-alist-to-file))))
 
@@ -283,12 +285,14 @@ If narrowing is active, only in it."
           (setq fold-this--overlay-alist
                 (delq (assoc buffer-file-name fold-this--overlay-alist)
                       fold-this--overlay-alist))
-          (mapc 'fold-this--save-overlay-to-alist
-                (overlays-in (point-min) (point-max))))
+          (save-restriction
+	    (widen)
+	    (mapc 'fold-this--save-overlay-to-alist
+		  (overlays-in (point-min) (point-max)))))
         (setq buf-list (cdr buf-list))))))
 
 (defun fold-this--save-overlay-to-alist (overlay)
-  "Add an overlay position pair to the alist"
+  "Add an OVERLAY position pair to the alist."
   (when (eq (overlay-get overlay 'type) 'fold-this)
     (let* ((pos (cons (1- (overlay-start overlay)) (1+ (overlay-end overlay))))
            (file-name buffer-file-name)
