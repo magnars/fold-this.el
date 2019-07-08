@@ -46,6 +46,12 @@
   :group 'fold-this
   :type 'sexp)
 
+(defcustom fold-this-skip-chars 0
+  "How chars to skip from selected when creating the overlay.
+Define an \"border\" to skip on overly creation."
+  :group 'fold-this
+  :type 'integer)
+
 (defvar fold-this--overlay-keymap
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "<return>") 'fold-this-unfold-at-point)
@@ -99,7 +105,7 @@ If FOLD-HEADER is specified, show this text in place of the
 folded region.  If not, default to `fold-this-overlay-text'."
   (interactive "r")
   (let ((fold-header (or fold-header fold-this-overlay-text))
-        (o (make-overlay (1+ beg) (1- end) nil t nil)))
+        (o (make-overlay (+ beg fold-this-skip-chars) (- end fold-this-skip-chars) nil t nil)))
     (overlay-put o 'type 'fold-this)
     (overlay-put o 'invisible t)
     (overlay-put o 'keymap fold-this--overlay-keymap)
@@ -294,7 +300,7 @@ If narrowing is active, only in it."
 (defun fold-this--save-overlay-to-alist (overlay)
   "Add an OVERLAY position pair to the alist."
   (when (eq (overlay-get overlay 'type) 'fold-this)
-    (let* ((pos (cons (1- (overlay-start overlay)) (1+ (overlay-end overlay))))
+    (let* ((pos (cons (- (overlay-start overlay) fold-this-skip-chars) (+ (overlay-end overlay) fold-this-skip-chars)))
            (file-name buffer-file-name)
            (cell (assoc file-name fold-this--overlay-alist))
            overlay-list)
