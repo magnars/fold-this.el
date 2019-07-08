@@ -104,15 +104,15 @@ folded region.  If not, default to `fold-this-overlay-text'."
     (overlay-put o 'invisible t)
     (overlay-put o 'keymap fold-this--overlay-keymap)
     (overlay-put o 'isearch-open-invisible-temporary
-                 (lambda (o action)
+                 (lambda (ov action)
                    (if action
                        (progn
-                         (overlay-put o 'display (propertize fold-header 'face 'fold-this-overlay))
-                         (overlay-put o 'invisible t))
+                         (overlay-put ov 'display (propertize fold-header 'face 'fold-this-overlay))
+                         (overlay-put ov 'invisible t))
                      (progn
-                       (overlay-put o 'display nil)
-                       (overlay-put o 'invisible nil)))))
-    (overlay-put o 'isearch-open-invisible (lambda (o) (fold-this-unfold-at-point)))
+                       (overlay-put ov 'display nil)
+                       (overlay-put ov 'invisible nil)))))
+    (overlay-put o 'isearch-open-invisible (lambda (_ov) (fold-this-unfold-at-point)))
     (overlay-put o 'face 'fold-this-overlay)
     (overlay-put o 'modification-hooks '(fold-this--delete-my-overlay))
     (overlay-put o 'display (propertize fold-header 'face 'fold-this-overlay))
