@@ -78,7 +78,8 @@ Define a \"border\" to skip on overly creation."
 (defcustom fold-this-overlay-text "[[…]]"
   "Default text for `fold-this' mode overlays."
   :group 'fold-this
-  :type 'string)
+  :type '(choice (string :tag "Text")
+		 (list (string :tag "Beginning text") (string :tag "Middle text") (string :tag "End text"))))
 
 (defcustom fold-this-persistent-folds nil
   "Should folds survive buffer kills and Emacs sessions.
@@ -105,8 +106,15 @@ sessions. "
 If FOLD-HEADER is specified, show this text in place of the
 folded region.  If not, default to `fold-this-overlay-text'."
   (interactive "r")
-  (let ((fold-header (or fold-header fold-this-overlay-text))
-        (o (make-overlay (+ beg fold-this-skip-chars) (- end fold-this-skip-chars) nil t nil)))
+  (let* ((fold-header-text (or fold-header fold-this-overlay-text))
+	 (fold-header (or (and (listp fold-header-text)
+			      (concat (nth 0 fold-header-text)
+				      (buffer-substring beg (+ beg fold-this-skip-chars))
+				      (nth 1 fold-header-text)
+				      (buffer-substring (- end fold-this-skip-chars) end)
+				      (nth 2 fold-header-text)))
+			 fold-header-text))
+        (o (make-overlay beg end nil t nil)))
     (overlay-put o 'type 'fold-this)
     (overlay-put o 'invisible t)
     (overlay-put o 'keymap fold-this--overlay-keymap)
@@ -301,8 +309,7 @@ If narrowing is active, only in it."
 (defun fold-this--save-overlay-to-alist (overlay)
   "Add an OVERLAY position pair to the alist."
   (when (eq (overlay-get overlay 'type) 'fold-this)
-    (let* ((pos (cons (- (overlay-start overlay) fold-this-skip-chars)
-		      (+ (overlay-end overlay) fold-this-skip-chars)))
+    (let* ((pos (cons (overlay-start overlay) (overlay-end overlay)))
            (file-name buffer-file-name)
            (cell (assoc file-name fold-this--overlay-alist))
            overlay-list)
