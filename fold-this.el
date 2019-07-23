@@ -46,6 +46,13 @@
   :group 'fold-this
   :type 'sexp)
 
+(defcustom fold-this-skip-chars 0
+  "How many chars to skip from selected when creating the overlay.
+Define a \"border\" to skip on overly creation."
+  :group 'fold-this
+  :type 'integer
+  :package-version '(fold-this . 0.4.4))
+
 (defvar fold-this--overlay-keymap
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "<return>") 'fold-this-unfold-at-point)
@@ -69,9 +76,10 @@
   :group 'fold-this)
 
 (defcustom fold-this-overlay-text "[[…]]"
-  "Default textt for `fold-this' mode overlays."
+  "Default text for `fold-this' mode overlays."
   :group 'fold-this
-  :type 'string)
+  :type '(choice (string :tag "Text")
+		 (list (string :tag "Beginning text") (string :tag "Middle text") (string :tag "End text"))))
 
 (defcustom fold-this-persistent-folds nil
   "Should folds survive buffer kills and Emacs sessions.
@@ -98,21 +106,28 @@ sessions. "
 If FOLD-HEADER is specified, show this text in place of the
 folded region.  If not, default to `fold-this-overlay-text'."
   (interactive "r")
-  (let ((fold-header (or fold-header fold-this-overlay-text))
-        (o (make-overlay (1+ beg) (1- end) nil t nil)))
+  (let* ((fold-header-text (or fold-header fold-this-overlay-text))
+	 (fold-header (or (and (listp fold-header-text)
+			      (concat (nth 0 fold-header-text)
+				      (buffer-substring beg (+ beg fold-this-skip-chars))
+				      (nth 1 fold-header-text)
+				      (buffer-substring (- end fold-this-skip-chars) end)
+				      (nth 2 fold-header-text)))
+			 fold-header-text))
+        (o (make-overlay beg end nil t nil)))
     (overlay-put o 'type 'fold-this)
     (overlay-put o 'invisible t)
     (overlay-put o 'keymap fold-this--overlay-keymap)
     (overlay-put o 'isearch-open-invisible-temporary
-                 (lambda (o action)
+                 (lambda (ov action)
                    (if action
                        (progn
-                         (overlay-put o 'display (propertize fold-header 'face 'fold-this-overlay))
-                         (overlay-put o 'invisible t))
+                         (overlay-put ov 'display (propertize fold-header 'face 'fold-this-overlay))
+                         (overlay-put ov 'invisible t))
                      (progn
-                       (overlay-put o 'display nil)
-                       (overlay-put o 'invisible nil)))))
-    (overlay-put o 'isearch-open-invisible (lambda (o) (fold-this-unfold-at-point)))
+                       (overlay-put ov 'display nil)
+                       (overlay-put ov 'invisible nil)))))
+    (overlay-put o 'isearch-open-invisible 'fold-this--delete-my-overlay)
     (overlay-put o 'face 'fold-this-overlay)
     (overlay-put o 'modification-hooks '(fold-this--delete-my-overlay))
     (overlay-put o 'display (propertize fold-header 'face 'fold-this-overlay))
@@ -294,7 +309,7 @@ If narrowing is active, only in it."
 (defun fold-this--save-overlay-to-alist (overlay)
   "Add an OVERLAY position pair to the alist."
   (when (eq (overlay-get overlay 'type) 'fold-this)
-    (let* ((pos (cons (1- (overlay-start overlay)) (1+ (overlay-end overlay))))
+    (let* ((pos (cons (overlay-start overlay) (overlay-end overlay)))
            (file-name buffer-file-name)
            (cell (assoc file-name fold-this--overlay-alist))
            overlay-list)
