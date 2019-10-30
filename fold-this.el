@@ -348,7 +348,10 @@ Drop the tail of the alist."
 (define-minor-mode fold-this-mode
   "Toggle folding on or off.
 With folding activated add custom map \\[fold-this-keymap]"
-  :lighter (:eval (concat " " fold-this-overlay-text))
+  :lighter (:eval (apply 'concat " "
+			 (if (listp fold-this-overlay-text)
+			     fold-this-overlay-text
+			   (list fold-this-overlay-text))))
   :keymap fold-this-keymap
   :group 'fold-this
   :init-value nil
