@@ -3,7 +3,7 @@
 ;; Copyright (C) 2012-2013 Magnar Sveen <magnars@gmail.com>
 
 ;; Author: Magnar Sveen <magnars@gmail.com>
-;; Version: 0.4.3
+;; Version: 0.4.4
 ;; Keywords: convenience
 ;; Homepage: https://github.com/magnars/fold-this.el
 
@@ -348,7 +348,10 @@ Drop the tail of the alist."
 (define-minor-mode fold-this-mode
   "Toggle folding on or off.
 With folding activated add custom map \\[fold-this-keymap]"
-  :lighter (:eval (concat " " fold-this-overlay-text))
+  :lighter (:eval (apply 'concat " "
+                         (if (listp fold-this-overlay-text)
+                             fold-this-overlay-text
+                           (list fold-this-overlay-text))))
   :keymap fold-this-keymap
   :group 'fold-this
   :init-value nil
